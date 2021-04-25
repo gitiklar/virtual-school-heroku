@@ -1,32 +1,54 @@
-import LoginPage from './loginPage.js';
-import MessagesPage from './messagesPage.js';
 
-export default class Application {
-    constructor(bus ,  service) {
-        this.bus = bus;
-        this.service = service;
-        this.renderPage();
-        this.subscribes();
+class Appliation {
+    constructor(textarea,bodyTable) {
+        this.textarea = textarea;
+        this.bodyTable = bodyTable;
+        this.tableRows = [];
+        this.indexToAddRowInTable = 1;
+        this.currentGraph = new RectangleGraph();
+
+        this.textarea.addEventListener('input', this.reScanningAllTextArea.bind(this));
+        window.addEventListener('hashchange', this.changeGraphFromHash.bind(this));
+        this.changeGraphFromHash();
     }
 
-    renderLogin() {
-        this.currentPage = new MessagesPage(this.bus , this.service);
-    }
-
-    renderMessages() {
-        this.currentPage = new LoginPage(this.bus , this.service);
-    }
-
-    renderPage = () => {
-        if(this.currentPage && this.currentPage.constructor.name === 'LoginPage') {
-            this.renderLogin();
-        } else {
-            this.renderMessages();
+    changeGraphFromHash() {
+        const hash = window.location.hash;
+        if(hash) {
+            this.currentGraph.leave();
+            if(hash==='#circle') {
+                this.currentGraph = new CircleGraph();
+            }
+            if(hash==='#rectangle') { 
+                this.currentGraph = new RectangleGraph();
+            }
+            this.currentGraph.clearText();
+            this.currentGraph.clearShape();
+            this.reScanningAllTextArea();
         }
     }
 
-    subscribes() {
-        this.bus.subscribe('replacePage' , this.renderPage);
+    reScanningAllTextArea() {
+        this.tableRows = [];
+        this.indexToAddRowInTable = 1;
+        ((this.textarea.value.split(/\t|\n|\r|\s/)).filter(v => v != '')).forEach((word)=>{
+            const indexOfThisWordInRowArray = this.tableRows.findIndex((rowObj)=>rowObj.word===word);
+            if (indexOfThisWordInRowArray != -1) {
+                this.tableRows[indexOfThisWordInRowArray].addCount();
+            }
+            else {
+                this.tableRows.push(new Row(word, this.indexToAddRowInTable++));
+            }
+        });
+        this.updateTable();
+        this.currentGraph.resetAll();
+        this.currentGraph.updateGraphForMaxCountWord(this.tableRows);
     }
 
+    updateTable() {
+        this.bodyTable.innerHTML = '';
+        this.tableRows.forEach(obj => {
+            obj.addRowToTable(this.bodyTable);
+        });
+    }
 }
